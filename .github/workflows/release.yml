@@ -1,0 +1,149 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (must already exist)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            archive: OpenUtauFX-windows-x64.zip
+          - name: macOS
+            os: macos-latest
+            archive: OpenUtauFX-macos.zip
+          - name: Linux x64
+            os: ubuntu-latest
+            archive: OpenUtauFX-linux-x64.tar.gz
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install build dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build libx11-dev libxext-dev libxinerama-dev libxcursor-dev \
+            libfreetype6-dev libasound2-dev libgl1-mesa-dev libjack-jackd2-dev
+
+      - name: Install build dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      - name: Fetch plug-in SDKs
+        shell: bash
+        run: |
+          cd iPlug2/Dependencies/IPlug
+          if [ ! -d VST3_SDK/pluginterfaces ]; then
+            bash download-vst3-sdk.sh
+          fi
+          if [ ! -d CLAP_SDK/include ]; then
+            bash download-clap-sdks.sh
+          fi
+
+      - name: Configure
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cmake -B build -A x64 -DIPLUG2_DIR="${{ github.workspace }}/iPlug2"
+          else
+            cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+              -DIPLUG2_DIR="${{ github.workspace }}/iPlug2"
+          fi
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --config Release
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $items = @()
+          $items += Get-ChildItem -Path build -Recurse -Filter *.vst3 | Select-Object -ExpandProperty FullName
+          $items += Get-ChildItem -Path build -Recurse -Filter *.clap | Select-Object -ExpandProperty FullName
+          $items += Get-ChildItem -Path build -Recurse -Filter OpenUtauFX.exe | Select-Object -ExpandProperty FullName
+          if ($items.Count -eq 0) { throw "no build output found" }
+          $items | ForEach-Object { Write-Host $_ }
+          Compress-Archive -Path $items -DestinationPath "dist/${{ matrix.archive }}" -Force
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -e
+          items=$(find build -maxdepth 3 \( -name '*.vst3' -o -name '*.clap' -o -name '*.app' -o -name '*.component' \) -print)
+          if [ -z "$items" ]; then echo "no build output found"; exit 1; fi
+          echo "$items"
+          # ditto keeps the bundle structure and symlinks intact
+          rm -rf dist && mkdir -p dist/stage
+          for item in $items; do cp -R "$item" dist/stage/; done
+          ditto -c -k --sequesterRsrc --keepParent dist/stage "dist/${{ matrix.archive }}"
+          rm -rf dist/stage
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -e
+          mkdir -p dist
+          items=$(find build -maxdepth 3 \( -name '*.vst3' -o -name '*.clap' -o -name 'OpenUtauFX' \) -print)
+          if [ -z "$items" ]; then echo "no build output found"; exit 1; fi
+          echo "$items"
+          tar -czf "dist/${{ matrix.archive }}" $items
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          if-no-files-found: error
+          path: dist/${{ matrix.archive }}
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download archives
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List archives
+        run: ls -la dist
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          set -e
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "OpenUtau FX $TAG" \
+              --generate-notes
+          fi

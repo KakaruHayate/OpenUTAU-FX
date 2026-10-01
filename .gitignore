@@ -1,0 +1,19 @@
+
+# Build outputs
+build/
+cmake-build-*/
+out/
+dist/
+
+# IDE
+.idea/
+.vs/
+*.vcxproj.user
+*.suo
+*.sdf
+*.opensdf
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
