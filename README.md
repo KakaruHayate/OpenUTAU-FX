@@ -70,7 +70,7 @@ The plug-in builds with CMake against [iPlug 2](https://github.com/iPlug2/iPlug2
 which is vendored as a submodule.
 
 ```bash
-git clone --recursive https://github.com/KakaruHayate/OpenUTau-FX.git
+git clone --recursive https://github.com/KakaruHayate/OpenUTAU-FX.git
 cd OpenUTau-FX
 
 # one-off: fetch the plug-in SDKs iPlug 2 needs

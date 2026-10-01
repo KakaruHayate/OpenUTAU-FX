@@ -4,7 +4,7 @@
 #define PLUG_VERSION_STR "0.1.0"
 #define PLUG_UNIQUE_ID 'OUFX'
 #define PLUG_MFR_ID 'KkHy'
-#define PLUG_URL_STR "https://github.com/KakaruHayate/OpenUTau-FX"
+#define PLUG_URL_STR "https://github.com/KakaruHayate/OpenUTAU-FX"
 #define PLUG_EMAIL_STR ""
 #define PLUG_COPYRIGHT_STR "Copyright 2026 KakaruHayate"
 #define PLUG_CLASS_NAME OpenUtauFX
