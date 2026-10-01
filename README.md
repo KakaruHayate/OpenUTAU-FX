@@ -1,7 +1,7 @@
 # OpenUtau FX
 
-A VST3 / CLAP / standalone audio effect that brings **OpenUtau**'s per-track
-post-processing rack to any DAW.
+A VST3 audio effect (plus a standalone app) that brings **OpenUtau**'s
+per-track post-processing rack to any DAW.
 
 OpenUtau's *Track Polish* window (the Mix-FX dialog) is a rack of three
 hardware-style faceplates — **EQ**, **Compressor** and **Reverb** — each with a
@@ -73,8 +73,8 @@ which is vendored as a submodule.
 git clone --recursive https://github.com/KakaruHayate/OpenUTAU-FX.git
 cd OpenUTau-FX
 
-# one-off: fetch the plug-in SDKs iPlug 2 needs
-(cd iPlug2/Dependencies/IPlug && bash download-vst3-sdk.sh && bash download-clap-sdks.sh)
+# one-off: fetch the VST3 SDK iPlug 2 needs
+(cd iPlug2/Dependencies/IPlug && bash download-vst3-sdk.sh)
 
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
@@ -84,8 +84,11 @@ The binaries land in `build/out/`. On Windows the Visual Studio generator is
 selected automatically — use `cmake -B build -A x64` and
 `cmake --build build --config Release`.
 
-Pushing a tag such as `v0.1.0` runs the release workflow, which builds on
-Windows, macOS and Linux and attaches the packaged plug-ins to a GitHub release.
+Windows x64 and macOS are supported. iPlug 2's graphics backends do not cover
+Linux, so there is no Linux build.
+
+Pushing a tag such as `v0.1.0` runs the release workflow, which builds both
+platforms and attaches the packaged plug-ins to a GitHub release.
 
 ## Why these libraries
 

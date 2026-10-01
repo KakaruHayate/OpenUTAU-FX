@@ -21,9 +21,6 @@ jobs:
           - name: macOS
             os: macos-latest
             artifact: OpenUtauFX-macos
-          - name: Linux x64
-            os: ubuntu-latest
-            artifact: OpenUtauFX-linux-x64
 
     steps:
       - name: Check out
@@ -32,27 +29,16 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Install build dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            ninja-build libx11-dev libxext-dev libxinerama-dev libxcursor-dev \
-            libfreetype6-dev libasound2-dev libgl1-mesa-dev libjack-jackd2-dev
-
-      - name: Install build dependencies (macOS)
+      - name: Install Ninja (macOS)
         if: runner.os == 'macOS'
         run: brew install ninja
 
-      - name: Fetch plug-in SDKs
+      - name: Fetch the VST3 SDK
         shell: bash
         run: |
           cd iPlug2/Dependencies/IPlug
           if [ ! -d VST3_SDK/pluginterfaces ]; then
             bash download-vst3-sdk.sh
-          fi
-          if [ ! -d CLAP_SDK/include ]; then
-            bash download-clap-sdks.sh
           fi
 
       - name: Configure
@@ -71,7 +57,7 @@ jobs:
 
       - name: Show build output
         shell: bash
-        run: find build -maxdepth 3 \( -name '*.vst3' -o -name '*.clap' -o -name '*.app' -o -name 'OpenUtauFX.exe' -o -name 'OpenUtauFX' \) -print
+        run: find build -maxdepth 3 \( -name '*.vst3' -o -name '*.app' -o -name 'OpenUtauFX.exe' \) -print
 
       - name: Upload plug-ins
         uses: actions/upload-artifact@v4

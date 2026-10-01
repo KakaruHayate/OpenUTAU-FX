@@ -23,7 +23,7 @@ target_include_directories(oufx_headers INTERFACE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/OpenUtauFX
 )
 
-# VST3 + CLAP, plus a standalone app for previewing the rack without a host.
+# VST3, plus a standalone app for previewing the rack without a host.
 iplug_add_plugin(OpenUtauFX
   SOURCES
     src/OpenUtauFX/OpenUtauFX.cpp
@@ -39,7 +39,7 @@ iplug_add_plugin(OpenUtauFX
     resources/fonts/Roboto-Regular.ttf
     resources/fonts/Roboto-Bold.ttf
     resources/fonts/RobotoMono-Regular.ttf
-  FORMATS VST3 CLAP APP
+  FORMATS VST3 APP
   LINK oufx_headers
 )
 
@@ -53,7 +53,7 @@ if(WIN32)
     COMPILE_FLAGS "/I\"${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts\" /I\"${CMAKE_CURRENT_SOURCE_DIR}/resources/img\" /I\"${CMAKE_CURRENT_SOURCE_DIR}/resources\""
   )
 
-  foreach(_target OpenUtauFX-vst3 OpenUtauFX-clap)
+  foreach(_target OpenUtauFX-vst3)
     if(TARGET ${_target})
       target_sources(${_target} PRIVATE "${OUFX_RC}")
     endif()

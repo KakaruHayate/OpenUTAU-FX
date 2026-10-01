@@ -26,9 +26,6 @@ jobs:
           - name: macOS
             os: macos-latest
             archive: OpenUtauFX-macos.zip
-          - name: Linux x64
-            os: ubuntu-latest
-            archive: OpenUtauFX-linux-x64.tar.gz
 
     steps:
       - name: Check out
@@ -37,27 +34,16 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Install build dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            ninja-build libx11-dev libxext-dev libxinerama-dev libxcursor-dev \
-            libfreetype6-dev libasound2-dev libgl1-mesa-dev libjack-jackd2-dev
-
-      - name: Install build dependencies (macOS)
+      - name: Install Ninja (macOS)
         if: runner.os == 'macOS'
         run: brew install ninja
 
-      - name: Fetch plug-in SDKs
+      - name: Fetch the VST3 SDK
         shell: bash
         run: |
           cd iPlug2/Dependencies/IPlug
           if [ ! -d VST3_SDK/pluginterfaces ]; then
             bash download-vst3-sdk.sh
-          fi
-          if [ ! -d CLAP_SDK/include ]; then
-            bash download-clap-sdks.sh
           fi
 
       - name: Configure
@@ -81,7 +67,6 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           $items = @()
           $items += Get-ChildItem -Path build -Recurse -Filter *.vst3 | Select-Object -ExpandProperty FullName
-          $items += Get-ChildItem -Path build -Recurse -Filter *.clap | Select-Object -ExpandProperty FullName
           $items += Get-ChildItem -Path build -Recurse -Filter OpenUtauFX.exe | Select-Object -ExpandProperty FullName
           if ($items.Count -eq 0) { throw "no build output found" }
           $items | ForEach-Object { Write-Host $_ }
@@ -92,7 +77,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          items=$(find build -maxdepth 3 \( -name '*.vst3' -o -name '*.clap' -o -name '*.app' -o -name '*.component' \) -print)
+          items=$(find build -maxdepth 3 \( -name '*.vst3' -o -name '*.app' \) -print)
           if [ -z "$items" ]; then echo "no build output found"; exit 1; fi
           echo "$items"
           # ditto keeps the bundle structure and symlinks intact
@@ -100,17 +85,6 @@ jobs:
           for item in $items; do cp -R "$item" dist/stage/; done
           ditto -c -k --sequesterRsrc --keepParent dist/stage "dist/${{ matrix.archive }}"
           rm -rf dist/stage
-
-      - name: Package (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -e
-          mkdir -p dist
-          items=$(find build -maxdepth 3 \( -name '*.vst3' -o -name '*.clap' -o -name 'OpenUtauFX' \) -print)
-          if [ -z "$items" ]; then echo "no build output found"; exit 1; fi
-          echo "$items"
-          tar -czf "dist/${{ matrix.archive }}" $items
 
       - name: Upload archive
         uses: actions/upload-artifact@v4
