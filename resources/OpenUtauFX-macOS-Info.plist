@@ -7,9 +7,11 @@
 	<key>CFBundleExecutable</key>
 	<string>OpenUtauFX</string>
 	<key>CFBundleGetInfoString</key>
-	<string>OpenUtauFX v0.1.0 Copyright 2026 KakaruHayate</string>
+	<string>OpenUtauFX v0.2.0 Copyright 2026 OpenUTAU</string>
+	<key>CFBundleIconFile</key>
+	<string>OpenUtauFX.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.KakaruHayate.app.OpenUtauFX</string>
+	<string>com.OpenUTAU.app.OpenUtauFX</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -17,11 +19,11 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
+	<string>0.2.0</string>
 	<key>CFBundleSignature</key>
 	<string>OUfx</string>
 	<key>CFBundleVersion</key>
-	<string>0.1.0</string>
+	<string>0.2.0</string>
 	<key>CSResourcesFileMapped</key>
 	<true/>
 	<key>LSApplicationCategoryType</key>

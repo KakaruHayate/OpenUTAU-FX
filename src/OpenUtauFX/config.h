@@ -1,16 +1,16 @@
 #define PLUG_NAME "OpenUtauFX"
-#define PLUG_MFR "KakaruHayate"
-#define PLUG_VERSION_HEX 0x00010000
-#define PLUG_VERSION_STR "0.1.0"
+#define PLUG_MFR "OpenUTAU"
+#define PLUG_VERSION_HEX 0x00020000
+#define PLUG_VERSION_STR "0.2.0"
 #define PLUG_UNIQUE_ID 'OUFX'
 #define PLUG_MFR_ID 'KkHy'
 #define PLUG_URL_STR "https://github.com/KakaruHayate/OpenUTAU-FX"
 #define PLUG_EMAIL_STR ""
-#define PLUG_COPYRIGHT_STR "Copyright 2026 KakaruHayate"
+#define PLUG_COPYRIGHT_STR "Copyright 2026 OpenUTAU"
 #define PLUG_CLASS_NAME OpenUtauFX
 
 #define BUNDLE_NAME "OpenUtauFX"
-#define BUNDLE_MFR "KakaruHayate"
+#define BUNDLE_MFR "OpenUTAU"
 #define BUNDLE_DOMAIN "com"
 
 #define SHARED_RESOURCES_SUBPATH "OpenUtauFX"

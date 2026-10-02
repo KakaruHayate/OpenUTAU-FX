@@ -182,7 +182,7 @@ public:
       return;
 
     mDragging = false;
-    SetValueFromUserInput(pParam->ToNormalized(pParam->GetDefault()), GetParamIdx());
+    SetValueFromUserInput(pParam->ToNormalized(pParam->GetDefault()), 0);
   }
 
   void OnMouseDrag(float x, float y, float dX, float dY, const IMouseMod& mod) override
@@ -190,7 +190,7 @@ public:
     if (!mDragging)
       return;
 
-    Nudge((mLastY - y) * static_cast<double>(Step(mod)));
+    Nudge((mLastY - y) * static_cast<double>(Step(mod.S)));
     mLastY = y;
   }
 
@@ -198,19 +198,33 @@ public:
 
   void OnMouseWheel(float x, float y, const IMouseMod& mod, float d) override
   {
-    Nudge(d * static_cast<double>(Step(mod)));
+    Nudge(d * static_cast<double>(Step(mod.S)));
+  }
+
+  bool OnKeyDown(float x, float y, const IKeyPress& key) override
+  {
+    // One press is one step, the same unit the wheel uses.
+    switch (key.VK)
+    {
+      case kVK_LEFT:
+      case kVK_DOWN:  Nudge(-static_cast<double>(Step(key.S))); return true;
+      case kVK_RIGHT:
+      case kVK_UP:    Nudge(static_cast<double>(Step(key.S))); return true;
+      default:        return false;
+    }
   }
 
 private:
-  /** Value delta for one pixel of drag; the wheel uses the same unit. */
-  float Step(const IMouseMod& mod) const
+  /** Value delta for one pixel of drag; the wheel and the arrow keys use the
+   *  same unit, and Shift makes it fine. */
+  float Step(bool fine) const
   {
     const IParam* pParam = GetParam();
     if (!pParam)
       return 0.f;
 
     float step = static_cast<float>((pParam->GetMax() - pParam->GetMin()) / kDragPixels);
-    if (mod.S)
+    if (fine)
       step *= kFineFactor;
 
     return step;
@@ -223,7 +237,7 @@ private:
       return;
 
     const double v = std::clamp(pParam->Value() + delta, pParam->GetMin(), pParam->GetMax());
-    SetValueFromUserInput(pParam->ToNormalized(v), GetParamIdx());
+    SetValueFromUserInput(pParam->ToNormalized(v), 0);
   }
 
   const PlatePalette& mPalette;
@@ -297,7 +311,7 @@ public:
     if (!pParam)
       return;
 
-    SetValueFromUserInput(pParam->Bool() ? 0.0 : 1.0, GetParamIdx());
+    SetValueFromUserInput(pParam->Bool() ? 0.0 : 1.0, 0);
   }
 
 private:

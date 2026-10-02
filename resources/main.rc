@@ -189,8 +189,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION 0,1,0,0
-PRODUCTVERSION 0,1,0,0
+FILEVERSION 0,2,0,0
+PRODUCTVERSION 0,2,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -205,13 +205,13 @@ BEGIN
     BEGIN
         BLOCK "040004e4"
         BEGIN
-            VALUE "FileVersion", "0.1.0"
-            VALUE "ProductVersion", "0.1.0"
+            VALUE "FileVersion", "0.2.0"
+            VALUE "ProductVersion", "0.2.0"
             VALUE "FileDescription", "OpenUtauFX"
             VALUE "InternalName", "OpenUtauFX"
             VALUE "ProductName", "OpenUtauFX"
-            VALUE "CompanyName", "KakaruHayate"
-            VALUE "LegalCopyright", "Copyright 2026 KakaruHayate"
+            VALUE "CompanyName", "OpenUTAU"
+            VALUE "LegalCopyright", "Copyright 2026 OpenUTAU"
             VALUE "LegalTrademarks", "VST is a trademark of Steinberg Media Technologies GmbH, Audio Unit is a trademark of Apple, Inc."
         END
     END

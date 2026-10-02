@@ -62,6 +62,9 @@ public:
   void OnParamChange(int paramIdx) override;
 #endif
 
+  void OnParamChangeUI(int paramIdx, EParamSource source) override;
+  bool OnHostRequestingProductHelp() override;
+
   bool SerializeState(IByteChunk& chunk) const override;
   int UnserializeState(const IByteChunk& chunk, int startPos) override;
 
@@ -71,13 +74,21 @@ private:
   void SetParamValue(int paramIdx, double value);
   oufx::dsp::Chain::Params BuildChainParams() const;
 
+  // Module presets ----------------------------------------------------------
+  // Each one writes a whole faceplate: the selector's own parameter plus the
+  // knobs that preset defines.  The reverb's WET knob is a trim on the wet
+  // level the preset already carries, so a preset load resets it to unity.
+  void ApplyEqPreset(int index);
+  void ApplyCompPreset(int index);
+  void ApplyReverbPreset(int index, double wetTrim);
+
   // Rack library ------------------------------------------------------------
   std::vector<std::string> LibraryNames() const;
   void ApplyLibraryEntry(int index);
   void BeginSaveUserPreset();
   void CommitUserPreset(const char* name);
   void DeleteUserPreset();
-  void RefreshLibraryCombo();
+  void RefreshControls();
 
   std::unique_ptr<oufx::dsp::Chain> mChain;
   double mChainSampleRate = 0.0;

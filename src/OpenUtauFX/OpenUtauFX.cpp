@@ -1,6 +1,13 @@
 #include "OpenUtauFX.h"
 #include "IPlug_include_in_plug_src.h"
 
+#ifdef OS_WIN
+#include <windows.h>
+
+// IDI_ICON1, the icon resources/main.rc embeds in the binaries.
+#include "../../resources/resource.h"
+#endif
+
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -56,6 +63,40 @@ static void FormatHz(char* buf, size_t len, double v) { snprintf(buf, len, "%.0f
 static void FormatRatio(char* buf, size_t len, double v) { snprintf(buf, len, "%.1f:1", v); }
 static void FormatUnit2(char* buf, size_t len, double v) { snprintf(buf, len, "%.2f", v); }
 static void FormatMs(char* buf, size_t len, double v) { snprintf(buf, len, "%.0f ms", v); }
+
+// ── Window icon ─────────────────────────────────────────────────────────────
+
+#ifdef OS_WIN
+/** The standalone app's main window is a dialog, and a dialog carries no icon
+ *  of its own: the title bar would be blank and the taskbar would fall back to
+ *  whatever the shell happens to have cached for the executable.  Set it from
+ *  the icon resource the .rc embeds, at both sizes Windows asks for. */
+static void SetAppWindowIcon(IGraphics* pGraphics)
+{
+  auto* pView = static_cast<HWND>(pGraphics->GetWindow());
+  if (!pView)
+    return;
+
+  HWND hTop = GetAncestor(pView, GA_ROOT);
+  if (!hTop)
+    return;
+
+  auto* hInst = GetModuleHandleW(nullptr);
+  // Not named "small": rpcndr.h defines that as a macro for char.
+  const int bigSize = GetSystemMetrics(SM_CXICON);
+  const int smallSize = GetSystemMetrics(SM_CXSMICON);
+
+  if (auto* hIcon = static_cast<HICON>(LoadImageW(hInst, MAKEINTRESOURCEW(IDI_ICON1),
+                                                  IMAGE_ICON, bigSize, bigSize, LR_SHARED)))
+    SendMessageW(hTop, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(hIcon));
+
+  if (auto* hIcon = static_cast<HICON>(LoadImageW(hInst, MAKEINTRESOURCEW(IDI_ICON1),
+                                                  IMAGE_ICON, smallSize, smallSize, LR_SHARED)))
+    SendMessageW(hTop, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(hIcon));
+}
+#else
+static void SetAppWindowIcon(IGraphics*) {}
+#endif
 
 // ── Plugin ──────────────────────────────────────────────────────────────────
 
@@ -210,7 +251,7 @@ OpenUtauFX::OpenUtauFX(const InstanceInfo& info)
       pGraphics->AttachControl(new ComboControl(p.combo, palette, *pDropdown,
         [this]() { return std::vector<std::string>{ "Off", "Vocal Air", "Warm", "Demud", "Telephone" }; },
         [this]() { return static_cast<int>(GetParam(kParamEqPreset)->Value()); },
-        [this](int index) { SetParamValue(kParamEqPreset, static_cast<double>(index)); },
+        [this](int index) { ApplyEqPreset(index); },
         true));
 
       const IRECT low = p.knobRow.SubRectHorizontal(3, 0);
@@ -245,7 +286,7 @@ OpenUtauFX::OpenUtauFX(const InstanceInfo& info)
       pGraphics->AttachControl(new ComboControl(p.combo, palette, *pDropdown,
         [this]() { return std::vector<std::string>{ "Off", "Gentle", "Pop", "Limit" }; },
         [this]() { return static_cast<int>(GetParam(kParamCompPreset)->Value()); },
-        [this](int index) { SetParamValue(kParamCompPreset, static_cast<double>(index)); },
+        [this](int index) { ApplyCompPreset(index); },
         true));
 
       attachKnobCell(p.knobRow.SubRectHorizontal(2, 0), "THRESHOLD", kParamCompThreshold, palette,
@@ -278,7 +319,7 @@ OpenUtauFX::OpenUtauFX(const InstanceInfo& info)
       pGraphics->AttachControl(new ComboControl(p.combo, palette, *pDropdown,
         [this]() { return std::vector<std::string>{ "Off", "Small Room", "Vocal Plate", "Hall", "Ambient" }; },
         [this]() { return static_cast<int>(GetParam(kParamReverbPreset)->Value()); },
-        [this](int index) { SetParamValue(kParamReverbPreset, static_cast<double>(index)); },
+        [this](int index) { ApplyReverbPreset(index, 1.0); },
         true));
 
       attachKnobCell(p.knobRow.SubRectHorizontal(2, 0), "SIZE", kParamReverbSize, palette,
@@ -293,7 +334,46 @@ OpenUtauFX::OpenUtauFX(const InstanceInfo& info)
     }
 
     pGraphics->AttachControl(pDropdown, kCtrlTagDropdown);
+
+    SetAppWindowIcon(pGraphics);
   };
+}
+
+bool OpenUtauFX::OnHostRequestingProductHelp()
+{
+  auto* pGraphics = GetUI();
+  if (!pGraphics)
+    return false;
+
+  // The standalone app's Help menu.  Keep this to what fits a message box: it
+  // is the whole manual a user gets without leaving the plug-in.
+  static const char* kManual =
+    "OpenUtau FX - Track Polish rack\n"
+    "\n"
+    "EQ > Compressor > Reverb, each behind its own power switch.\n"
+    "POWER (top right) bypasses the whole rack.\n"
+    "\n"
+    "EQ: LOW / MID / HIGH are +/-12 dB. FREQUENCY (200 Hz - 6 kHz) is the\n"
+    "MID band's centre. Fixed shelves sit at 200 Hz and 8 kHz.\n"
+    "\n"
+    "Compressor: THRESHOLD -40 - 0 dB, RATIO 1:1 - 20:1, MAKEUP 0 - 12 dB,\n"
+    "with a fixed 6 dB soft knee. Attack and release come from the preset.\n"
+    "\n"
+    "Reverb: SIZE and DAMPING 0 - 1, PRE-DELAY 0 - 200 ms, WET 0 - 2, which\n"
+    "trims the wet level the preset already carries.\n"
+    "\n"
+    "Knobs: drag vertically, hold Shift for fine, the wheel or the arrow keys\n"
+    "step, and a double-click resets to the default.\n"
+    "\n"
+    "Presets: each faceplate's strip picks that module's preset. The LIBRARY\n"
+    "strip loads a whole rack; SAVE and DELETE manage your own entries.\n"
+    "RESET flattens the rack, DEFAULT and RECOMMENDED load the recommended\n"
+    "one.\n"
+    "\n"
+    PLUG_URL_STR;
+
+  pGraphics->ShowMessageBox(kManual, PLUG_NAME " - manual", kMB_OK);
+  return true;
 }
 
 // ── Parameters ──────────────────────────────────────────────────────────────
@@ -305,6 +385,62 @@ void OpenUtauFX::SetParamValue(int paramIdx, double value)
     return;
 
   SendParameterValueFromUI(paramIdx, pParam->ToNormalized(value));
+
+  // Nothing else marks the controls dirty on this path.  A control only
+  // repaints itself when the change came from it, and a standalone host never
+  // echoes the value back the way a DAW does, so the rack would otherwise keep
+  // showing the values it had before the preset was applied.
+  RefreshControls();
+}
+
+void OpenUtauFX::OnParamChangeUI(int paramIdx, EParamSource source)
+{
+  // Every module switch dims its LED while the rack's master power is off, so
+  // they all have to repaint when it moves.  Only the master's own control is
+  // linked to that parameter, which leaves the other three stale otherwise.
+  if (paramIdx == kParamEnabled)
+    RefreshControls();
+}
+
+// ── Module presets ──────────────────────────────────────────────────────────
+// Selecting a preset writes the faceplate's knobs, not just the selector: the
+// DSP reads the knobs, so setting the index alone would change nothing you can
+// hear.  The compressor's attack and release, and the reverb's width and dry
+// level, are not knobs and keep coming straight from the preset table.
+
+void OpenUtauFX::ApplyEqPreset(int index)
+{
+  index = std::clamp(index, 0, oufx::dsp::kNumEqPresets - 1);
+  const auto& preset = kEqPresets[index];
+
+  SetParamValue(kParamEqPreset, static_cast<double>(index));
+  SetParamValue(kParamEqLow, preset.lowDb);
+  SetParamValue(kParamEqMidFreq, preset.midFreq);
+  SetParamValue(kParamEqMid, preset.midDb);
+  SetParamValue(kParamEqHigh, preset.highDb);
+}
+
+void OpenUtauFX::ApplyCompPreset(int index)
+{
+  index = std::clamp(index, 0, oufx::dsp::kNumCompPresets - 1);
+  const auto& preset = kCompPresets[index];
+
+  SetParamValue(kParamCompPreset, static_cast<double>(index));
+  SetParamValue(kParamCompThreshold, preset.thresholdDb);
+  SetParamValue(kParamCompRatio, preset.ratio);
+  SetParamValue(kParamCompMakeup, preset.makeupDb);
+}
+
+void OpenUtauFX::ApplyReverbPreset(int index, double wetTrim)
+{
+  index = std::clamp(index, 0, oufx::dsp::kNumReverbPresets - 1);
+  const auto& preset = kReverbPresets[index];
+
+  SetParamValue(kParamReverbPreset, static_cast<double>(index));
+  SetParamValue(kParamReverbSize, preset.roomSize);
+  SetParamValue(kParamReverbDamp, preset.damp);
+  SetParamValue(kParamReverbWet, wetTrim);
+  SetParamValue(kParamReverbPreDelay, preset.preDelayMs);
 }
 
 Chain::Params OpenUtauFX::BuildChainParams() const
@@ -433,11 +569,14 @@ std::vector<std::string> OpenUtauFX::LibraryNames() const
   return names;
 }
 
-void OpenUtauFX::RefreshLibraryCombo()
+void OpenUtauFX::RefreshControls()
 {
+  // Setting parameters programmatically bypasses the controls, so nothing is
+  // marked dirty and the rack would keep showing its old pixels.  A standalone
+  // host never echoes the change back either, which is what would normally do
+  // that marking.
   if (auto* pGraphics = GetUI())
-    if (auto* pCombo = pGraphics->GetControlWithTag(kCtrlTagLibraryCombo))
-      pCombo->SetDirty(false);
+    pGraphics->SetAllControlsDirty();
 }
 
 void OpenUtauFX::ApplyLibraryEntry(int index)
@@ -456,31 +595,9 @@ void OpenUtauFX::ApplyLibraryEntry(int index)
     SetParamValue(kParamReverbOn, 1.0);
     SetParamValue(kParamEnabled, 1.0);
 
-    const int eqIndex = oufx::dsp::FindEqPreset(rack.eqKey);
-    const int compIndex = oufx::dsp::FindCompPreset(rack.compKey);
-    const int reverbIndex = oufx::dsp::FindReverbPreset(rack.reverbKey);
-
-    SetParamValue(kParamEqPreset, static_cast<double>(eqIndex));
-    SetParamValue(kParamCompPreset, static_cast<double>(compIndex));
-    SetParamValue(kParamReverbPreset, static_cast<double>(reverbIndex));
-
-    // Selecting a module preset loads its values into that plate's knobs.
-    const auto& eq = kEqPresets[eqIndex];
-    SetParamValue(kParamEqLow, eq.lowDb);
-    SetParamValue(kParamEqMidFreq, eq.midFreq);
-    SetParamValue(kParamEqMid, eq.midDb);
-    SetParamValue(kParamEqHigh, eq.highDb);
-
-    const auto& comp = kCompPresets[compIndex];
-    SetParamValue(kParamCompThreshold, comp.thresholdDb);
-    SetParamValue(kParamCompRatio, comp.ratio);
-    SetParamValue(kParamCompMakeup, comp.makeupDb);
-
-    const auto& reverb = kReverbPresets[reverbIndex];
-    SetParamValue(kParamReverbSize, reverb.roomSize);
-    SetParamValue(kParamReverbDamp, reverb.damp);
-    SetParamValue(kParamReverbWet, rack.reverbWet);
-    SetParamValue(kParamReverbPreDelay, reverb.preDelayMs);
+    ApplyEqPreset(oufx::dsp::FindEqPreset(rack.eqKey));
+    ApplyCompPreset(oufx::dsp::FindCompPreset(rack.compKey));
+    ApplyReverbPreset(oufx::dsp::FindReverbPreset(rack.reverbKey), rack.reverbWet);
   }
   else
   {
@@ -491,7 +608,7 @@ void OpenUtauFX::ApplyLibraryEntry(int index)
   }
 
   mLibraryIndex = index;
-  RefreshLibraryCombo();
+  RefreshControls();
 }
 
 void OpenUtauFX::BeginSaveUserPreset()
@@ -528,14 +645,14 @@ void OpenUtauFX::CommitUserPreset(const char* name)
     {
       existing = preset;
       mLibraryIndex = kNumRackPresets + static_cast<int>(&existing - mUserPresets.data());
-      RefreshLibraryCombo();
+      RefreshControls();
       return;
     }
   }
 
   mUserPresets.push_back(std::move(preset));
   mLibraryIndex = kNumRackPresets + static_cast<int>(mUserPresets.size()) - 1;
-  RefreshLibraryCombo();
+  RefreshControls();
 }
 
 void OpenUtauFX::DeleteUserPreset()
@@ -547,7 +664,7 @@ void OpenUtauFX::DeleteUserPreset()
 
   mUserPresets.erase(mUserPresets.begin() + userIndex);
   mLibraryIndex = 0;
-  RefreshLibraryCombo();
+  RefreshControls();
 }
 
 // ── State ───────────────────────────────────────────────────────────────────
@@ -611,7 +728,7 @@ int OpenUtauFX::UnserializeState(const IByteChunk& chunk, int startPos)
 
   pos = chunk.Get(&mLibraryIndex, pos);
 
-  RefreshLibraryCombo();
+  RefreshControls();
   mParamsDirty.store(true);
 
   return pos;

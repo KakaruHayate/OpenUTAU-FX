@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(OpenUtauFX VERSION 0.1.0)
+project(OpenUtauFX VERSION 0.2.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -58,4 +58,22 @@ if(WIN32)
       target_sources(${_target} PRIVATE "${OUFX_RC}")
     endif()
   endforeach()
+endif()
+
+# The macOS standalone app picks up resources/OpenUtauFX.icns on its own; the
+# VST3 bundle needs it added to Resources explicitly so the DAW and Finder show
+# the same icon.
+if(APPLE)
+  set(OUFX_ICNS "${CMAKE_CURRENT_SOURCE_DIR}/resources/OpenUtauFX.icns")
+
+  if(EXISTS "${OUFX_ICNS}")
+    foreach(_target OpenUtauFX-vst3)
+      if(TARGET ${_target})
+        target_sources(${_target} PRIVATE "${OUFX_ICNS}")
+        set_source_files_properties("${OUFX_ICNS}" PROPERTIES
+          MACOSX_PACKAGE_LOCATION Resources
+        )
+      endif()
+    endforeach()
+  endif()
 endif()
